@@ -151,3 +151,4 @@ wandb/
 
 .vscode/
 *.mp4
+*.mov

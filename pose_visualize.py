@@ -58,7 +58,9 @@ def get_face_center(keypoints, faces_index_list):
 
 
 model = YOLO("weights/snack-pose.pt", task="pose")
-cap = cv2.VideoCapture(list_available_cam(5))
+# cap = cv2.VideoCapture(list_available_cam(5))
+cap = cv2.VideoCapture("data/test.mov")
+
 
 YOLO_CONF = 0.7
 KEYPOINTS_CONF = 0.7
@@ -87,10 +89,13 @@ while cap.isOpened():
         # print(obj_box)
         x1, y1, x2, y2 = obj_box[:4]
         obj_id = int(obj_box[4])
-        print(obj_id)
+        print(FRAME_WIDTH, FRAME_HEIGHT)
+        # print(obj_id)
+
+        print(obj_kpts.flatten())
 
         faces_centroid = get_face_center(obj_kpts, FACES)
-        print(faces_centroid)
+        # print(faces_centroid)
         draw_points(frame, faces_centroid, (128, 128, 0))
 
         cv2.rectangle(frame, (int(x1), int(y1)),
@@ -106,7 +111,12 @@ while cap.isOpened():
 
     cv2.imshow("frame", frame)
 
-    if cv2.waitKey(50) == ord("q"):
+    key = cv2.waitKey(50)
+
+    if key == ord("q"):
+        cap.release()
+    if key == ord("s"):
+        cv2.imwrite("frame1.jpg", frame)
         cap.release()
 
 cv2.destroyAllWindows()
