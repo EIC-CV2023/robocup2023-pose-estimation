@@ -44,8 +44,15 @@ while cap.isOpened():
 
     msg = c.req(frame)
 
-    print(msg)
+    # print(msg)
 
+    if msg:
+        for person_id, person in msg.items():
+            if "facedim" in person:
+                face_dim = person["facedim"]
+                face_img = np.array(person["faceflatten"].split(
+                    ", ")).reshape(face_dim + [3]).astype("uint8")
+                cv2.imshow("Client face", face_img)
     if cv2.waitKey(1) == ord("q"):
         cap.release()
 
