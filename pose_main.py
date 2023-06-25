@@ -130,14 +130,9 @@ def main(detect_pose=False, detect_face=False):
 
                     person_res["faceflatten"] = str(
                         rotated_face.flatten().tolist())[1:-1]
-                    print(person_res["faceflatten"])
 
-                    print(
-                        np.array(person_res["faceflatten"].split(", ")).shape)
-
-                    # print(np.array2string(rotated_face.flatten()))
                     person_res["facedim"] = rotated_face.shape[:-1]
-                    print(person_res["facedim"])
+
 
                     # cv2.rectangle(rotated_image, (fx1, fy1),
                     #               (fx2, fy2), (255, 0, 200), 2)
