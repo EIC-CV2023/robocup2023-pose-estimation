@@ -101,6 +101,9 @@ def main(detect_pose=False, detect_face=False):
             # print(person_id)
 
             person_res["bbox"] = (x1, y1, x2, y2)
+            person_res["area"] = int((x2-x1) * (y2-y1))
+            person_res["center"] = [
+                int(person_kpts[0, 0]), int(person_kpts[0, 1])]
 
             # Detect Face
             if detect_face:
@@ -133,7 +136,6 @@ def main(detect_pose=False, detect_face=False):
 
                     person_res["facedim"] = rotated_face.shape[:-1]
 
-
                     # cv2.rectangle(rotated_image, (fx1, fy1),
                     #               (fx2, fy2), (255, 0, 200), 2)
                     cv2.imshow("rot", rotated_face)
@@ -156,14 +158,14 @@ def main(detect_pose=False, detect_face=False):
             # Draw points
             for i, pt in enumerate(person_kpts):
                 x, y, p = pt
-                if p >= KEYPOINTS_CONF:
-                    cv2.putText(frame, str(i), (int(x), int(y)),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+                # if p >= KEYPOINTS_CONF:
+                cv2.putText(frame, str(i), (int(x), int(y)),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
             res[person_id] = person_res
             del person_res
 
-        # print(res)
+        print(res)
         # print(sys.getsizeof(json.dumps(res)))
         # print(len(json.dumps(res).encode("utf-8")))
 

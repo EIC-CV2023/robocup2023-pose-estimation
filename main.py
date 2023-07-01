@@ -24,9 +24,14 @@ DATASET_NAME = "coco"
 #                  "show": True,
 #                  "verbose": False}
 
-
 YOLO_CONF = 0.7
 KEYPOINTS_CONF = 0.7
+
+'''
+Command Parameter
+{"detect_pose": bool,
+ "detect_face": bool}
+'''
 
 
 def process_keypoints(keypoints, conf, frame_width, frame_height, origin=(0, 0)):
@@ -38,7 +43,7 @@ def process_keypoints(keypoints, conf, frame_width, frame_height, origin=(0, 0))
     return np.round(kpts[:, :-1].flatten(), 4)
 
 
-def main(detect_pose=False, detect_face=False):
+def main():
     HOST = socket.gethostname()
     PORT = 12302
 
@@ -50,29 +55,28 @@ def main(detect_pose=False, detect_face=False):
     print("DONE")
 
     pred_keras = False
-    if detect_pose == True:
-        # Limit Keras GPU Usage
-        gpus = tf.config.experimental.list_physical_devices("GPU")
-        if gpus:
-            try:
-                for gpu in gpus:
-                    tf.config.experimental.set_memory_growth(gpu, True)
-                logical_gpus = tf.config.experimental.list_logical_devices(
-                    "GPU")
-                print(len(gpus), "Physical GPUs, ",
-                      len(logical_gpus), "Logical GPUs")
+    # Limit Keras GPU Usage
+    gpus = tf.config.experimental.list_physical_devices("GPU")
+    if gpus:
+        try:
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            logical_gpus = tf.config.experimental.list_logical_devices(
+                "GPU")
+            print(len(gpus), "Physical GPUs, ",
+                  len(logical_gpus), "Logical GPUs")
 
-            except RuntimeError as e:
-                print(e)
+        except RuntimeError as e:
+            print(e)
 
-            print("Loading Keras Model")
-            try:
-                keras_model = keras.models.load_model(
-                    "weights/first_weight.h5", compile=False)
-                pred_keras = True
-                print("DONE")
-            except:
-                print("Error while loading keras model")
+        print("Loading Keras Model")
+        try:
+            keras_model = keras.models.load_model(
+                "weights/first_weight.h5", compile=False)
+            pred_keras = True
+            print("DONE")
+        except:
+            print("Error while loading keras model")
 
     while True:
         # Wait for connection from client :}
@@ -85,13 +89,11 @@ def main(detect_pose=False, detect_face=False):
         while True:
             res = dict()
             try:
-                data = server.recvMsg(conn, has_splitter=True)
-
-                frame_height, frame_width = int(data[0]), int(data[1])
-                # print(frame_height, frame_width)
-
-                img = np.frombuffer(
-                    data[-1], dtype=np.uint8).reshape(frame_height, frame_width, 3)
+                data = server.recvMsg(
+                    conn, has_splitter=True, has_command=True)
+                frame_height, frame_width, img, command = data
+                detect_pose = command["detect_pose"]
+                detect_face = command["detect_face"]
 
                 results = model.track(
                     source=img, conf=YOLO_CONF, show=False, verbose=False, persist=True)[0]
@@ -100,7 +102,6 @@ def main(detect_pose=False, detect_face=False):
 
                 for person_kpts, person_box in zip(kpts, boxes):
                     person_res = dict()
-
                     x1, y1, x2, y2 = person_box[:4]
                     x1, y1 = int(max(0, x1)), int(max(0, y1))
                     x2, y2 = int(min(frame_width, x2)), int(
@@ -108,6 +109,9 @@ def main(detect_pose=False, detect_face=False):
                     person_id = int(person_box[4])
 
                     person_res["bbox"] = (x1, y1, x2, y2)
+                    person_res["area"] = int((x2-x1) * (y2-y1))
+                    person_res["center"] = [
+                        int(person_kpts[0, 0]), int(person_kpts[0, 1])]
 
                     # Detect Face
                     if detect_face:
@@ -154,11 +158,11 @@ def main(detect_pose=False, detect_face=False):
                             person_res["pose"] = "NA"
 
                     # Draw points
-                    for i, pt in enumerate(person_kpts):
-                        x, y, p = pt
-                        if p >= KEYPOINTS_CONF:
-                            cv2.putText(img, str(i), (int(x), int(
-                                y)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+                    # for i, pt in enumerate(person_kpts):
+                    #     x, y, p = pt
+                    #     if p >= KEYPOINTS_CONF:
+                    #         cv2.putText(img, str(i), (int(x), int(
+                    #             y)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
                     res[person_id] = person_res
                     del person_res
@@ -172,18 +176,12 @@ def main(detect_pose=False, detect_face=False):
                 print(e)
                 print("Connection Closed")
                 del res
+                print("Reset YOLO")
+                model = YOLO(WEIGHT, task="pose")
                 break
 
         cv2.destroyAllWindows()
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--detect_pose", action="store_true", help="Detect Pose")
-    parser.add_argument(
-        "--detect_face", action="store_true", help="Detect Face and Rotate")
-    args = parser.parse_args()
-    # print(args.detect_pose)
-
-    main(detect_pose=args.detect_pose, detect_face=args.detect_face)
+    main()

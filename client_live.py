@@ -42,17 +42,21 @@ while cap.isOpened():
 
     # cv2.imshow('client_cam', frame)
 
-    msg = c.req(frame)
+    msg = c.req_with_command(
+        frame, {"detect_face": True, "detect_pose": False})
 
     # print(msg)
 
     if msg:
         for person_id, person in msg.items():
+            if "pose" in person:
+                print(person["pose"])
             if "facedim" in person:
                 face_dim = person["facedim"]
                 face_img = np.array(person["faceflatten"].split(
                     ", ")).reshape(face_dim + [3]).astype("uint8")
                 cv2.imshow("Client face", face_img)
+    cv2.imshow("f", frame)
     if cv2.waitKey(1) == ord("q"):
         cap.release()
 
