@@ -88,12 +88,15 @@ def main():
         # Process frame received from client
         while True:
             res = dict()
+            msg = {"res": res}
             try:
                 data = server.recvMsg(
                     conn, has_splitter=True, has_command=True)
                 frame_height, frame_width, img, command = data
                 detect_pose = command["detect_pose"]
                 detect_face = command["detect_face"]
+
+                msg["camera_info"] = [frame_width, frame_height]
 
                 results = model.track(
                     source=img, conf=YOLO_CONF, show=False, verbose=False, persist=True)[0]
@@ -169,7 +172,7 @@ def main():
 
                 # Send back result
                 # print(res)
-                server.sendMsg(conn, json.dumps(res))
+                server.sendMsg(conn, json.dumps(msg))
 
             except Exception as e:
                 traceback.print_exc()
