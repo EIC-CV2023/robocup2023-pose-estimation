@@ -168,7 +168,6 @@ def main():
                     #             y)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
                     res[person_id] = person_res
-                    del person_res
 
                 # Send back result
                 # print(res)
