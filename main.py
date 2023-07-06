@@ -84,7 +84,7 @@ def main():
         print("Client connected from", addr)
 
         all_count = dict()
-        consec_Count = dict()
+        consec_count = dict()
 
         # start = time.time()
 
@@ -105,6 +105,8 @@ def main():
                     source=img, conf=YOLO_CONF, show=False, verbose=False, persist=True)[0]
                 kpts = results.keypoints.cpu().numpy()
                 boxes = results.boxes.data.cpu().numpy()
+
+                detect_id = []
 
                 for person_kpts, person_box in zip(kpts, boxes):
                     person_res = dict()
@@ -128,6 +130,14 @@ def main():
                         all_count[person_id] = 1
                     
                     person_res["alltime_count"] = all_count[person_id]
+
+                    if consec_count.get(person_id):
+                        consec_count[person_id] += 1
+                    else:
+                        consec_count[person_id] = 1
+                    detect_id.append(person_id)
+                    person_res["consecutive_count"] = consec_count[person_id]
+
 
 
                     # Detect Face
@@ -182,6 +192,14 @@ def main():
                     #             y)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
                     res[person_id] = person_res
+
+                print(consec_count, detect_id)
+                new_consec_count = consec_count.copy()
+
+                for con_id in consec_count:
+                    if con_id not in detect_id:
+                        new_consec_count.pop(con_id)
+                consec_count = new_consec_count
 
                 # Send back result
                 # print(res)
