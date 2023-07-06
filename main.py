@@ -33,6 +33,40 @@ Command Parameter
  "detect_face": bool}
 '''
 
+def get_pose_joint_angle(kpts, joint):
+    co1, co2, co3 = kpts[joint]
+    radxy = np.arctan2(co3[1] - co2[1], co3[0] - co2[0]) - np.arctan2(co1[1] - co2[1], co1[0] - co2[0])
+    anglexy = np.abs(radxy * 180 / np.pi)
+    anglexy = min(anglexy, 360 - anglexy)
+    return anglexy
+
+
+def get_pose_slope_angle(kpts, index1, index2):
+    co1, co2 = kpts[index1], kpts[index2]
+    slope_radxy = np.arctan2(co1[1] - co2[1], co1[0] - co2[0])
+    slope_anglexy = np.abs(slope_radxy * 180 / np.pi)
+    return slope_anglexy
+
+def detect_hand_raise(kpts):
+    right_shoulder, right_elbow, right_wrist = kpts[[6,8,10]]
+    left_shoulder, left_elbow, left_wrist = kpts[[5,7,9]]
+
+    if right_wrist[1] <= right_shoulder[1] and \
+            right_wrist[1] <= right_elbow[1] and \
+            (120 >= get_pose_joint_angle(kpts, [6, 8, 10]) >= 30 or
+                135 >= get_pose_slope_angle(kpts, 8, 10) >= 45) and 10 <= get_pose_slope_angle(kpts, 8, 10) <= 170:
+        return 1
+    
+    if left_wrist[1] <= left_shoulder[1] and \
+            left_wrist[1] <= left_elbow[1] and \
+            (120 >= get_pose_joint_angle(kpts, [5, 7, 9]) >= 30 or
+                135 >= get_pose_slope_angle(kpts, 7, 9) >= 45) and 10 <= get_pose_slope_angle(kpts, 7, 9) <= 170:
+        return 2
+    
+    return 0
+
+    
+
 
 def process_keypoints(keypoints, conf, frame_width, frame_height, origin=(0, 0)):
     kpts = np.copy(keypoints)
@@ -54,29 +88,31 @@ def main():
     model = YOLO(WEIGHT, task="pose")
     print("DONE")
 
-    pred_keras = False
+
+    # TODO Train keras for pose
+    # pred_keras = False
     # Limit Keras GPU Usage
-    gpus = tf.config.experimental.list_physical_devices("GPU")
-    if gpus:
-        try:
-            for gpu in gpus:
-                tf.config.experimental.set_memory_growth(gpu, True)
-            logical_gpus = tf.config.experimental.list_logical_devices(
-                "GPU")
-            print(len(gpus), "Physical GPUs, ",
-                  len(logical_gpus), "Logical GPUs")
+    # gpus = tf.config.experimental.list_physical_devices("GPU")
+    # if gpus:
+    #     try:
+    #         for gpu in gpus:
+    #             tf.config.experimental.set_memory_growth(gpu, True)
+    #         logical_gpus = tf.config.experimental.list_logical_devices(
+    #             "GPU")
+    #         print(len(gpus), "Physical GPUs, ",
+    #               len(logical_gpus), "Logical GPUs")
 
-        except RuntimeError as e:
-            print(e)
+    #     except RuntimeError as e:
+    #         print(e)
 
-        print("Loading Keras Model")
-        try:
-            keras_model = keras.models.load_model(
-                "weights/first_weight.h5", compile=False)
-            pred_keras = True
-            print("DONE")
-        except:
-            print("Error while loading keras model")
+    #     print("Loading Keras Model")
+    #     try:
+    #         keras_model = keras.models.load_model(
+    #             "weights/first_weight.h5", compile=False)
+    #         pred_keras = True
+    #         print("DONE")
+    #     except:
+    #         print("Error while loading keras model")
 
     while True:
         # Wait for connection from client :}
@@ -118,8 +154,9 @@ def main():
 
                     person_res["bbox"] = (x1, y1, x2, y2)
                     person_res["area"] = int((x2-x1) * (y2-y1))
-                    person_res["center"] = [
+                    person_res["face_center"] = [
                         int(person_kpts[0, 0]), int(person_kpts[0, 1])]
+                    person_res["center"] = [int(co) for co in np.mean(person_kpts[[5, 6, 11, 12], :2], axis = 0)]
                     
                     is_inside = all((pose_pt[2] >= KEYPOINTS_CONF for pose_pt in person_kpts[13:15]))
                     person_res["is_inside"] = is_inside
@@ -173,16 +210,18 @@ def main():
                             # cv2.imshow("rot", rotated_face)
 
                     if detect_pose:
-                        if pred_keras:
-                            processed_kpts = process_keypoints(
-                                person_kpts, KEYPOINTS_CONF, frame_width, frame_height, (x1, y1))
-                            pred_pose = np.argmax(keras_model.predict(
-                                processed_kpts.reshape((1, 34)), verbose=0), axis=1)
-                            # print(processed_kpts)
-                            # print(pred_pose[0])
-                            person_res["pose"] = int(pred_pose[0])
-                        else:
-                            person_res["pose"] = "NA"
+                        # TODO Train keras
+                        # if pred_keras:
+                        #     processed_kpts = process_keypoints(
+                        #         person_kpts, KEYPOINTS_CONF, frame_width, frame_height, (x1, y1))
+                        #     pred_pose = np.argmax(keras_model.predict(
+                        #         processed_kpts.reshape((1, 34)), verbose=0), axis=1)
+                        #     # print(processed_kpts)
+                        #     # print(pred_pose[0])
+                        #     person_res["pose"] = int(pred_pose[0])
+                        # else:
+                        #     person_res["pose"] = "NA"
+                        person_res["pose"] = detect_hand_raise(person_kpts)
 
                     # Draw points
                     # for i, pt in enumerate(person_kpts):
@@ -193,9 +232,7 @@ def main():
 
                     res[person_id] = person_res
 
-                print(consec_count, detect_id)
                 new_consec_count = consec_count.copy()
-
                 for con_id in consec_count:
                     if con_id not in detect_id:
                         new_consec_count.pop(con_id)

@@ -43,14 +43,21 @@ while cap.isOpened():
     # cv2.imshow('client_cam', frame)
 
     msg = c.req_with_command(
-        frame, {"detect_face": False, "detect_pose": False})
+        frame, {"detect_face": False, "detect_pose": True})
 
     # print(msg)
 
-    if msg:
-        for person_id, person in msg.items():
+    if msg["res"]:
+        for person_id, person in msg["res"].items():
+            print(person)
+            cv2.circle(frame, person["center"], 10, (255,0,0), -1)
+            cv2.circle(frame, person["face_center"], 10, (255,255,0), -1)
+
+
             if "pose" in person:
                 print(person["pose"])
+                pose = ["none", "Right", "Left"][person["pose"]]
+                cv2.putText(frame, pose, person["center"], cv2.FONT_HERSHEY_SIMPLEX, 2, (0,0,255), 2)
             if "facedim" in person:
                 face_dim = person["facedim"]
                 face_img = np.array(person["faceflatten"].split(
