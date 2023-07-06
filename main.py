@@ -83,6 +83,9 @@ def main():
         conn, addr = server.sock.accept()
         print("Client connected from", addr)
 
+        all_count = dict()
+        consec_Count = dict()
+
         # start = time.time()
 
         # Process frame received from client
@@ -115,6 +118,17 @@ def main():
                     person_res["area"] = int((x2-x1) * (y2-y1))
                     person_res["center"] = [
                         int(person_kpts[0, 0]), int(person_kpts[0, 1])]
+                    
+                    is_inside = all((pose_pt[2] >= KEYPOINTS_CONF for pose_pt in person_kpts[13:15]))
+                    person_res["is_inside"] = is_inside
+
+                    if all_count.get(person_id):
+                        all_count[person_id] += 1
+                    else:
+                        all_count[person_id] = 1
+                    
+                    person_res["alltime_count"] = all_count[person_id]
+
 
                     # Detect Face
                     if detect_face:
