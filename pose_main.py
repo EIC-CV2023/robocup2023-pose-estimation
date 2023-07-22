@@ -44,7 +44,7 @@ YOLO_CONF = 0.7
 KEYPOINTS_CONF = 0.7
 
 
-def main(detect_pose=False, detect_face=False):
+def main(detect_pose=False, detect_face=False, resolution=(640, 480)):
     model = YOLO("weights/yolov8s-pose.pt", task="pose")
 
     pred_keras = False
@@ -81,6 +81,7 @@ def main(detect_pose=False, detect_face=False):
         if not ret:
             print("Error")
             continue
+        frame = cv2.resize(frame, resolution)
 
         frame_height, frame_width = frame.shape[:-1]
 
@@ -158,16 +159,14 @@ def main(detect_pose=False, detect_face=False):
             # Draw points
             for i, pt in enumerate(person_kpts):
                 x, y, p = pt
-                # if p >= KEYPOINTS_CONF:
-                cv2.putText(frame, str(i), (int(x), int(y)),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+                if p >= KEYPOINTS_CONF:
+                    cv2.putText(frame, str(i), (int(x), int(y)),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
             res[person_id] = person_res
             del person_res
 
-        print(res)
-        # print(sys.getsizeof(json.dumps(res)))
-        # print(len(json.dumps(res).encode("utf-8")))
+        # print(res)
 
         cv2.putText(frame, "fps: " + str(round(1 / (time.time() - start), 2)), (10, int(cap.get(4)) - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
@@ -189,7 +188,10 @@ if __name__ == '__main__':
         "--detect_pose", action="store_true", help="Detect Pose")
     parser.add_argument(
         "--detect_face", action="store_true", help="Detect Face and Rotate")
+    parser.add_argument('--width', type=int, default=640, help="Frame Width")
+    parser.add_argument('--height', type=int, default=408, help="Frame Height")
     args = parser.parse_args()
     # print(args.detect_pose)
 
-    main(detect_pose=args.detect_pose, detect_face=args.detect_face)
+    main(detect_pose=args.detect_pose, detect_face=args.detect_face,
+         resolution=(args.width, args.height))
